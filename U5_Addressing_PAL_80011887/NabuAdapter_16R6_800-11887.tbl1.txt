@@ -1,0 +1,31 @@
+# PAL16R6
+ro18 = (!io12&psro18) | (psro18&psro17&!psro16&psro14) | (io19&psro18) | (
+    psro18&psro17&!psro15&!psro13) | (!psro16&psro13) | (!psro15&!psro14) | (
+    !psro16&!psro15);
+
+ro17 = (!io12&!psro18&psro17) | (!io12&psro18&!psro17) | (io19&!psro18
+    &psro17) | (io19&psro18&!psro17) | (psro18&psro17&!psro16&psro14) | (
+    psro18&psro17&!psro15&!psro13) | (!psro16&psro13) | (!psro15&!psro14) | (
+    !psro16&!psro15);
+
+ro16 = (i2&i3&i4&i5&i6&i7&i8&i9&io19&psro18&psro17&!psro15) | (i2&i3&i4
+    &i5&i6&i7&i8&i9&io19&!psro16) | (psro18&psro17&!psro16&psro14) | (
+    psro18&psro17&!psro15&!psro13) | (!psro16&psro13) | (!psro15&!psro14) | (
+    !psro16&!psro15);
+
+ro15 = (!i2&!i3&!i4&!i5&!i6&!i7&!i8&i9&!psro18&psro17&!psro15) | (!i2&!i3
+    &!i4&i5&i6&!i7&!i8&!i9&psro18&!psro17&!psro15) | (i2&!i3&!i4&!i5&!i6
+    &!i7&!i8&!i9&psro18&psro17&!psro15) | (!io19&io12) | (psro18&psro17
+    &!psro16&psro14) | (psro18&psro17&!psro15&!psro13) | (!psro16&psro13) | (
+    !psro15&!psro14) | (!psro16&!psro15);
+
+ro14 = (i2&i3&i4&i5&i6&i7&i8&i9&io19&!psro18&!psro17&!psro16) | (i2&!i3
+    &!i4&!i5&!i6&i7&i8&i9&io19&!psro18&!psro17&!psro15) | (!io12&!psro14) | (
+    io19&!psro14) | (psro18&psro17&!psro16&psro14) | (psro18&psro17
+    &!psro15&!psro13) | (!psro16&psro13) | (!psro15&!psro14) | (!psro16
+    &!psro15);
+
+ro13 = (i2&io19&psro18&psro17&!psro15) | (!io12&!psro13) | (io19&!psro13) | (
+    psro18&psro17&!psro16&psro14) | (psro18&psro17&!psro15&!psro13) | (
+    !psro16&psro13) | (!psro15&!psro14) | (!psro16&!psro15);
+

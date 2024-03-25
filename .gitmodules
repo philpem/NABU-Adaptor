@@ -1,0 +1,3 @@
+[submodule "U31_MC6805P2/MC6805P2_clone"]
+	path = U31_MC6805P2/MC6805P2_clone
+	url = https://github.com/philpem/MC6805P2_clone

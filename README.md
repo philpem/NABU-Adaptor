@@ -2,6 +2,10 @@
 
 This repository contains my work on reverse-engineering the cable network adapter for the NABU PC. There's been a lot of work done on the NABU PC itself (which is very similar to the MSX), but very little it seems on the cable system.
 
+**Git LFS is in use for the PCB scans: you will need Git LFS configured to download them.**
+
+Please only download the original scans and XCF (GIMP stacked layers) file if you need them. The JPEGs in the main repository should be fine for most use cases.
+
 
 ## What is here
 

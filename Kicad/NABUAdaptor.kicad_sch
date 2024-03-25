@@ -2903,7 +2903,7 @@
     (effects (font (size 1.27 1.27)) (justify right bottom))
     (uuid 3a3c15bc-c2c5-4053-96fe-710ac2b2da5e)
   )
-  (text "U1.Q[7..0] = xx11_1110" (at 328.93 89.535 0)
+  (text "~{U1.Q[7..0] = xx11_1110}" (at 328.93 89.535 0)
     (effects (font (size 1.27 1.27)) (justify left bottom))
     (uuid 3ad24b3e-4fc8-448d-940e-0d9999a4a72d)
   )

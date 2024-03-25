@@ -84,3 +84,4 @@ The PCB scans are in the `PCB_Scans` directory, and the schematic is in the `Kic
 ## Links to other sites and repos
 
   * Jared Boone's NABU Adaptor reverse engineering: https://github.com/jboone/nabu-network-adapter
+  * RealDeuce's NABU Adaptor reverse engineering: https://github.com/RealDeuce/NABU-Network-Adaptor.git - at time of writing, this is a partial schematic.

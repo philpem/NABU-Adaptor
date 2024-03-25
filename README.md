@@ -1,6 +1,7 @@
 # NABU-Adaptor
 
-This repository contains my work on reverse-engineering the cable network adapter for the NABU PC. There's been a lot of work done on the NABU PC itself (which is a variant 
+This repository contains my work on reverse-engineering the cable network adapter for the NABU PC. There's been a lot of work done on the NABU PC itself (which is very similar to the MSX), but very little it seems on the cable system.
+
 
 ## What is here
 
@@ -9,6 +10,13 @@ This repository contains my work on reverse-engineering the cable network adapte
   * Speculation on how this all works
 
 I've been collaborating with Jared Boone, and you may find his work on the RF deck and modulation interesting: https://github.com/jboone/nabu-network-adapter
+
+
+## Channel codes
+
+According to Leo Binkowski, channel code `000E` is CATV channel 31. In the US/Canada CATV frequency scheme, this would be a frequency band of 264 - 270 MHz (centre frequency 267 MHz).
+
+*NOTE/TBD: There may be some kind of checksum embedded in the channel code; if this is the case, the code is probably hiding in the 6805.*
 
 
 ## RF protocol

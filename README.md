@@ -92,6 +92,12 @@ The hardest part of all this is following the traces, but removing the "finished
 
 The PCB scans are in the `PCB_Scans` directory, and the schematic is in the `Kicad` directory.
 
+### RF can
+
+The RF can hasn't been reverse-engineered fully (yet?).
+
+The PLL section contains a Motorola MC145155 PLL chip, a 1:64 prescaler, and an 8MHz reference oscillator. Jared Boone measured a 325MHz spike in that area using an EMC probe -- while the unit was tuned to CATV channel 31 (264-270MHz). This suggests the first IF is around 58 MHz.
+
 
 ## Links to other sites and repos
 

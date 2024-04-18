@@ -26,7 +26,36 @@ PIN 15 = iUniqAddrDet;		/* internal signal: unique address detect	*/
 PIN 16 = iBcastAddrDet;				/* internal signal: broadcast address detect	*/
 PIN 17 = FIFO_SO_SET;		/* Fifo SO logic clock, L->H edge triggered		*/
 PIN 18 = nFIFO_SO_CLR;		/* Fifo SO logic reset, active low		*/
-PIN 19 = HDLC_FLAG_Q;		/* HDLC FLAG detect, qualified			*/
+PIN 19 = nHDLC_FLAG_Q;		/* HDLC FLAG detect, qualified			*/
+
+/*****
+ * THEORY OF OPERATION
+ * -------------------
+ *
+ * This thing is really confusing (logically) but makes sense when you step through the logic.
+ *
+ * The input data bus is on pins 2..9 (D7..D0).
+ * Pin 12 is the receive request signal from the MCU.
+ * Pin 19 is the FLAG detect input from the 
+ *
+ * Stepping through:
+ *
+ *  REQ FLAG Data | State BCast Local PC3..2 | Notes
+ *  12   19   2-9 | 17-18  16    15   14..13 |
+ *  --- ---- ---- + ----- ----- ----- ------ | ------------------------
+ *   0    0   XX    11      1     0     11     Stay in this state until FLAG=0.
+ *   0    1   80    10      
+ *
+ *
+ *
+ *
+ * Pins 18,17 form a counter which starts at '11' and counts down to '00'.
+ * Pin 18 is the LSB.
+ * These are used to sequence the FIFO.
+ *
+ *  18  17
+ *
+ */
 
 
 /* Data input bus from cable TV network. */
@@ -46,21 +75,21 @@ common_set =
 /* Pin 18, to U28A /RESET.  0 = deactivate FIFO Shift Out signal.  */
 nFIFO_SO_CLR.D =
     (!RXGATE_REQ_Q & nFIFO_SO_CLR) #		/* 1 (no clear) if pin high, and RXGATE_REQ is low */
-    (HDLC_FLAG_Q & nFIFO_SO_CLR) #			/* 1 (no clear) if pin high, and FLAG detected */
+    (nHDLC_FLAG_Q & nFIFO_SO_CLR) #			/* 1 (no clear) if pin high, and FLAG detected */
     common_set;
 
 /* Pin 17, to U29A CLOCK.  L->H = latch U7.LE into U29; latch gate */
 FIFO_SO_SET.D =
     (!RXGATE_REQ_Q & !nFIFO_SO_CLR & FIFO_SO_SET) #
     (!RXGATE_REQ_Q & nFIFO_SO_CLR & !FIFO_SO_SET) #
-    (HDLC_FLAG_Q & !nFIFO_SO_CLR &  FIFO_SO_SET) #		/* HDLC FLAG + FIFO SO gate clear */
-    (HDLC_FLAG_Q &  nFIFO_SO_CLR & !FIFO_SO_SET) #		/* HDLC FLAG + not FIFO SO gate set */
+    (nHDLC_FLAG_Q & !nFIFO_SO_CLR &  FIFO_SO_SET) #		/* HDLC FLAG + FIFO SO gate clear */
+    (nHDLC_FLAG_Q &  nFIFO_SO_CLR & !FIFO_SO_SET) #		/* HDLC FLAG + not FIFO SO gate set */
     common_set;
 
 /* Internal signal, no external connection. Possibly detection of broadcast address? */
 iBcastAddrDet.D =
-    (Data:'h'FF   & HDLC_FLAG_Q &  nFIFO_SO_CLR &  FIFO_SO_SET & !iUniqAddrDet) #		/* iUniqAddrDet detect triggered */
-    (Data:'h'FF   & HDLC_FLAG_Q & !iBcastAddrDet) #										/* Raise after one clock */
+    (Data:'h'FF   & nHDLC_FLAG_Q &  nFIFO_SO_CLR &  FIFO_SO_SET & !iUniqAddrDet) #		/* iUniqAddrDet detect triggered */
+    (Data:'h'FF   & nHDLC_FLAG_Q & !iBcastAddrDet) #										/* Raise after one clock */
     common_set;
 
 /* Internal signal, no external connection */
@@ -68,22 +97,29 @@ iUniqAddrDet.D =
     (Data:'h'80   &  nFIFO_SO_CLR &  FIFO_SO_SET & !iUniqAddrDet) #					/* Address first byte */
     (Data:'h'01   & !nFIFO_SO_CLR &  FIFO_SO_SET & !iUniqAddrDet) #					/* Address second byte */
     (Data:'h'18   &  nFIFO_SO_CLR & !FIFO_SO_SET & !iUniqAddrDet) #					/* Address third byte */
-    (!HDLC_FLAG_Q &  RXGATE_REQ_Q) #
+    (!nHDLC_FLAG_Q &  RXGATE_REQ_Q) #
     common_set;
 
 /* To microcontroller PC3 */
 MCU_PC3.D =
-    (Data:'h'87   & HDLC_FLAG_Q & !nFIFO_SO_CLR & !FIFO_SO_SET & !iUniqAddrDet) #		/* Address final byte */
-    (Data:'h'FF   & HDLC_FLAG_Q & !nFIFO_SO_CLR & !FIFO_SO_SET & !iBcastAddrDet) #		/* All 1's -> broadcast? */
-    (HDLC_FLAG_Q & !MCU_PC3) #
+    (Data:'h'87   & nHDLC_FLAG_Q & !nFIFO_SO_CLR & !FIFO_SO_SET & !iUniqAddrDet) #		/* Address final byte */
+    (Data:'h'FF   & nHDLC_FLAG_Q & !nFIFO_SO_CLR & !FIFO_SO_SET & !iBcastAddrDet) #		/* All 1's -> broadcast? */
+    (nHDLC_FLAG_Q & !MCU_PC3) #
     (!RXGATE_REQ_Q      & !MCU_PC3) #
     common_set;
 
 /* To microcontroller PC2 */
 MCU_PC2.D =
-    (D7 & HDLC_FLAG_Q & nFIFO_SO_CLR & FIFO_SO_SET & !iUniqAddrDet) #
-    (HDLC_FLAG_Q & !MCU_PC2) #
+    (D7 & nHDLC_FLAG_Q & nFIFO_SO_CLR & FIFO_SO_SET & !iUniqAddrDet) #
+    (nHDLC_FLAG_Q & !MCU_PC2) #
     (!RXGATE_REQ_Q & !MCU_PC2) #
-
     common_set;
+
+/* 14   13
+ * PC3  PC2    State
+ *  0    0     Broadcast address detected
+ *  0    1
+ *  1    0     Receiving address
+ *  1    1     Waiting
+ */
 

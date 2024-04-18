@@ -1,0 +1,88 @@
+Name        NabuAdapter_800-11887;
+PartNo      XXXXX;
+Date        XX/XX/XX;
+Revision    XX;
+Designer    Reverse engineered by Phil Pemberton;
+Company     NABU Network Inc.;
+Assembly    NABU Adaptor main PCB;
+Location    U5;
+Device      PAL16R6;
+
+PIN  1 = CLOCK;				/* Byte clock							*/
+PIN  2 = D7;				/*  \									*/
+PIN  3 = D6;				/*   }									*/
+PIN  4 = D5;				/*   }									*/
+PIN  5 = D4;				/*   } Data from cable TV				*/
+PIN  6 = D3;				/*   } after destuffing					*/
+PIN  7 = D2;				/*   }									*/
+PIN  8 = D1;				/*   }									*/
+PIN  9 = D0;				/*  /									*/
+/* PIN 10 = GND;  */		/* Ground								*/
+/* PIN 11 = /OE; */			/* Registered output enable				*/
+PIN 12 = PIN12;				/*   */
+PIN 13 = MCU_PC2;			/* Output to MCU pin PC2				*/
+PIN 14 = MCU_PC3;			/* Output to MCU pin PC3				*/
+PIN 15 = PIN15;				/*   n.c. (no external connection)		*/
+PIN 16 = PIN16;				/*   n.c. (no external connection)		*/
+PIN 17 = FIFO_SO_SET;		/* Fifo SO logic clock, L->H edge triggered		*/
+PIN 18 = nFIFO_SO_CLR;		/* Fifo SO logic reset, active low		*/
+PIN 19 = HDLC_FLAG_Q;		/* HDLC FLAG detect, qualified			*/
+
+
+/* Data input bus from cable TV network. */
+/* Has been de-zero-stuffed and flag-synchronised. */
+FIELD Data = [D7..D0];
+
+
+/* All registers are set when any of these terms are true */
+common_set =
+    ( nFIFO_SO_CLR &  FIFO_SO_SET & !PIN16 &  MCU_PC3) #
+    ( nFIFO_SO_CLR &  FIFO_SO_SET & !PIN15 & !MCU_PC2) #
+    (!PIN16 &  MCU_PC2) #
+    (!PIN15 & !MCU_PC3) # 
+    (!PIN16 & !PIN15);
+
+
+/* Pin 18, to U28A /RESET.  0 = deactivate FIFO Shift Out signal.  */
+nFIFO_SO_CLR.D =
+    (!PIN12 & nFIFO_SO_CLR) #
+    (HDLC_FLAG_Q & nFIFO_SO_CLR) # 
+    common_set;
+
+/* Pin 17, to U29A CLOCK.  L->H = latch U7.LE into U29; latch gate */
+FIFO_SO_SET.D =
+    (!PIN12 & !nFIFO_SO_CLR & FIFO_SO_SET) #
+    (!PIN12 & nFIFO_SO_CLR & !FIFO_SO_SET) #
+    (HDLC_FLAG_Q & !nFIFO_SO_CLR &  FIFO_SO_SET) #		/* HDLC FLAG + FIFO SO gate clear */
+    (HDLC_FLAG_Q &  nFIFO_SO_CLR & !FIFO_SO_SET) #		/* HDLC FLAG + not FIFO SO gate set */
+    common_set;
+
+/* Internal signal, no external connection. Possibly detection of broadcast first addr byte? */
+PIN16.D =
+    (Data:'h'FF   & HDLC_FLAG_Q &  nFIFO_SO_CLR &  FIFO_SO_SET & !PIN15) #
+    (Data:'h'FF   & HDLC_FLAG_Q & !PIN16) #
+    common_set;
+
+/* Internal signal, no external connection */
+PIN15.D =
+    (Data:'h'18   &  nFIFO_SO_CLR & !FIFO_SO_SET & !PIN15) #					/* Address high byte */
+    (Data:'h'01   & !nFIFO_SO_CLR &  FIFO_SO_SET & !PIN15) #
+    (Data:'h'80   &  nFIFO_SO_CLR &  FIFO_SO_SET & !PIN15) #
+    (!HDLC_FLAG_Q &  PIN12) #
+    common_set;
+
+/* To microcontroller PC3 */
+MCU_PC3.D =
+    (Data:'h'87   & HDLC_FLAG_Q & !nFIFO_SO_CLR & !FIFO_SO_SET & !PIN15) #		/* Address low byte */
+    (Data:'h'FF   & HDLC_FLAG_Q & !nFIFO_SO_CLR & !FIFO_SO_SET & !PIN16) #		/* All 1's -> broadcast? */
+    (HDLC_FLAG_Q & !MCU_PC3) #
+    (!PIN12      & !MCU_PC3) #
+    common_set;
+
+/* To microcontroller PC2 */
+MCU_PC2.D =
+    (D7 & HDLC_FLAG_Q & nFIFO_SO_CLR & FIFO_SO_SET & !PIN15) #
+    (HDLC_FLAG_Q & !MCU_PC2) #
+    (!PIN12 & !MCU_PC2) #
+    common_set;
+

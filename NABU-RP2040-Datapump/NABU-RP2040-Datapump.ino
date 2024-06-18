@@ -95,6 +95,7 @@ static inline uint8_t scramble_bit(const uint8_t bit_in)
 
 uint8_t bb_locked[BITBUF_NBUFFERS] = {0};	// bit buffer lock flags
 uint8_t bb_buffer[BITBUF_NBUFFERS][BITBUF_BUFLEN];	// bit buffers
+uint8_t *bb_wrptr = bb_buffer[0];			// pointer to current byte in current bitbuffer
 size_t bb_length[BITBUF_NBUFFERS];			// number of buffered bytes
 uint32_t bb_cur_bitbuf = 0;	// current bitbuffer
 uint8_t bb_bits = 0;		// number of bits clocked in
@@ -129,54 +130,49 @@ bool bb_check_unlocks(void)
 static inline void bb_clockin(const byte b)
 {
 	// shift in
-	bb_buffer[bb_cur_bitbuf][bb_bytes] = (bb_buffer[bb_cur_bitbuf][bb_bytes] << 1) | (b&1);
+	*bb_wrptr = (*bb_wrptr << 1) | (b&1);
 	bb_bits++;
+
 	if (bb_bits == 8) {
+		// Completed this byte - onto the next
 		bb_bits = 0;
 		bb_bytes++;
-	}
+		bb_wrptr++;
 
-	if (bb_bytes >= BITBUF_BUFLEN) {
-		// buffer is full, lock the buffer and signal the other core to tx it
-		bb_locked[bb_cur_bitbuf] = 1;
-		bb_length[bb_cur_bitbuf] = bb_bytes;
-		rp2040.fifo.push(bb_cur_bitbuf);
-
-		// advance to the next buffer
-		bb_cur_bitbuf++;
-		if (bb_cur_bitbuf >= BITBUF_NBUFFERS) {
-			bb_cur_bitbuf = 0;
-		}
-		bb_bits = bb_bytes = 0;
-
-		// Check for initial buffer fill
-		if (bb_initial_fill > 0) {
-			bb_initial_fill--;
-			if (bb_initial_fill == 0) {
-				// Initial fill complete, release the other core
-				Serial.println("** Initial buffer fill complete, releasing second core");
-				rp2040.resumeOtherCore();
+		// Check for buffer fill
+		if (bb_bytes >= BITBUF_BUFLEN) {
+			// buffer is full, lock the buffer and signal the other core to tx it
+			bb_locked[bb_cur_bitbuf] = 1;
+			bb_length[bb_cur_bitbuf] = bb_bytes;
+			rp2040.fifo.push(bb_cur_bitbuf);
+	
+			// advance to the next buffer
+			bb_cur_bitbuf++;
+			if (bb_cur_bitbuf >= BITBUF_NBUFFERS) {
+				bb_cur_bitbuf = 0;
+			}
+			bb_bits = bb_bytes = 0;
+			bb_wrptr = bb_buffer[bb_cur_bitbuf];
+	
+			// Check for initial buffer fill
+			if (bb_initial_fill > 0) {
+				bb_initial_fill--;
+				if (bb_initial_fill == 0) {
+					// Initial fill complete, release the other core
+					Serial.println("** Initial buffer fill complete, releasing second core");
+					rp2040.resumeOtherCore();
+				}
+			}
+	
+			// Check for bitbuffer locking
+			if (bb_locked[bb_cur_bitbuf]) {
+				Serial.println("** All buffers full, waiting for a buffer");
+				while (!bb_check_unlocks()) {}
 			}
 		}
-
-		// Check for bitbuffer locking
-		if (bb_locked[bb_cur_bitbuf]) {
-			Serial.println("** All buffers full, waiting for a buffer");
-			while (!bb_check_unlocks()) {}
-		}
 	}
 }
 
-
-/*
-// Finalise the buffer by clocking in some idle bits
-static inline void bb_final(void)
-{
-	while (bb_bits != 0) {
-		bb_clockin(scramble_bit(0));
-	}
-}
-*/
 
 /****
  * SDLC transmission

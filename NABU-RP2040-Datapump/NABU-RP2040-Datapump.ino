@@ -86,6 +86,33 @@ static inline uint8_t scramble_bit(const uint8_t bit_in)
 	return b;
 }
 
+// Optimisation: scramble an entire byte
+uint8_t scramble_byte(const uint8_t byte_in)
+{
+	// Input byte is inverted
+	uint8_t out_byte = byte_in ^ 0xFF;
+
+	// xor with LFSR bits [19..11]
+	out_byte ^= scrambler_state >> 12;
+
+	// apply tap 2
+	// we only have 3 bits of state between here and the end of register
+	// so calculate those 3 bits
+	out_byte ^= (scrambler_state & 7) << 5;
+
+	// The 3 new bits would be clocked in at the end of the scrambler register
+	// so let's pretend we did that
+	out_byte ^= (out_byte >> 3) & 0x1C;	// 00011100
+
+	// Now use those 3 new bits to generate the last 2
+	out_byte ^= (out_byte >> 3) & 3;
+
+	// Shuffle the new 8 bits into the scrambler state
+	scrambler_state = (scrambler_state << 8) | out_byte;
+
+	return out_byte;
+}
+
 
 /****
  * Transmit bit buffer
@@ -141,7 +168,16 @@ static inline void bb_clockin(const byte b)
 
 		// Check for buffer fill
 		if (bb_bytes >= BITBUF_BUFLEN) {
-			// buffer is full, lock the buffer and signal the other core to tx it
+			// buffer is full!
+
+			// apply scrambling
+			uint8_t *p = bb_buffer[bb_cur_bitbuf];
+			for (size_t i=0; i<bb_bytes; i++) {
+				*p = scramble_byte(*p);
+				p++;
+			}
+
+			// lock the buffer and signal the other core to tx it
 			bb_locked[bb_cur_bitbuf] = 1;
 			bb_length[bb_cur_bitbuf] = bb_bytes;
 			rp2040.fifo.push(bb_cur_bitbuf);
@@ -187,7 +223,7 @@ void sdlc_send_flag(void)
 	uint8_t b = 0x7E;
 
 	for (int i=0; i<8; i++) {
-		bb_clockin(scramble_bit(b >> 7));
+		bb_clockin(b >> 7);
 		b <<= 1;
 	}
 
@@ -204,7 +240,7 @@ void sdlc_send_byte(const uint8_t bval)
 	for (int i=0; i<8; i++) {
 		// get current bit and shift it out thru the scrambler
 		v = b >> 7;
-		bb_clockin(scramble_bit(v));
+		bb_clockin(v);
 
 		// track number of consecutive '1' bits
 		if (v) {
@@ -215,7 +251,7 @@ void sdlc_send_byte(const uint8_t bval)
 
 		// perform zero stuffing if needed
 		if (sdlc_nOnes == 5) {
-			bb_clockin(scramble_bit(0));
+			bb_clockin(0);
 			sdlc_nOnes = 0;
 		}
 

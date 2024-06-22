@@ -473,14 +473,12 @@ void loop1()
 #endif
 
 #ifdef DMA
-while(true){
-    dma_channel_configure(dma_chan_spi, &dma_config_spi,
-                          &spi_get_hw(spi_default)->dr, // write address
-                          bb_buffer[zIndex], // read address
-                          bb_length[zIndex], // element count (each element is of size transfer_data_size)
-                          true); // start!
+	dma_channel_configure(dma_chan_spi, &dma_config_spi,
+						  &spi_get_hw(spi_default)->dr, // write address
+						  bb_buffer[zIndex], // read address
+						  bb_length[zIndex], // element count (each element is of size transfer_data_size)
+						  true); // start!
 	dma_channel_wait_for_finish_blocking(dma_chan_spi);
-}
 #else
 	// send the packet
 	SPI.beginTransaction(SPISettings(SPI_SPEED, MSBFIRST, SPI_MODE0));

@@ -153,6 +153,40 @@ bool bb_check_unlocks(void)
 }
 
 
+// Commit/finalise the current bit buffer
+static void bb_commit(void)
+{
+	// lock the buffer and signal the other core to tx it
+	bb_locked[bb_cur_bitbuf] = 1;
+	bb_length[bb_cur_bitbuf] = bb_bytes;
+	rp2040.fifo.push(bb_cur_bitbuf);
+
+	// advance to the next buffer
+	bb_cur_bitbuf++;
+	if (bb_cur_bitbuf >= BITBUF_NBUFFERS) {
+		bb_cur_bitbuf = 0;
+	}
+	bb_bits = bb_bytes = 0;
+	bb_wrptr = bb_buffer[bb_cur_bitbuf];
+
+	// Check for initial buffer fill
+	if (bb_initial_fill > 0) {
+		bb_initial_fill--;
+		if (bb_initial_fill == 0) {
+			// Initial fill complete, release the other core
+			Serial.println("** Initial buffer fill complete, releasing second core");
+			rp2040.resumeOtherCore();
+		}
+	}
+
+	// Check for bitbuffer locking
+	if (bb_locked[bb_cur_bitbuf]) {
+		Serial.println("** All buffers full, waiting for a buffer");
+		while (!bb_check_unlocks()) {}
+	}
+}
+
+
 // Clock a bit into the buffer
 static inline void bb_clockin(const byte b)
 {
@@ -168,43 +202,7 @@ static inline void bb_clockin(const byte b)
 
 		// Check for buffer fill
 		if (bb_bytes >= BITBUF_BUFLEN) {
-			// buffer is full!
-
-			// apply scrambling
-			uint8_t *p = bb_buffer[bb_cur_bitbuf];
-			for (size_t i=0; i<bb_bytes; i++) {
-				*p = scramble_byte(*p);
-				p++;
-			}
-
-			// lock the buffer and signal the other core to tx it
-			bb_locked[bb_cur_bitbuf] = 1;
-			bb_length[bb_cur_bitbuf] = bb_bytes;
-			rp2040.fifo.push(bb_cur_bitbuf);
-	
-			// advance to the next buffer
-			bb_cur_bitbuf++;
-			if (bb_cur_bitbuf >= BITBUF_NBUFFERS) {
-				bb_cur_bitbuf = 0;
-			}
-			bb_bits = bb_bytes = 0;
-			bb_wrptr = bb_buffer[bb_cur_bitbuf];
-	
-			// Check for initial buffer fill
-			if (bb_initial_fill > 0) {
-				bb_initial_fill--;
-				if (bb_initial_fill == 0) {
-					// Initial fill complete, release the other core
-					Serial.println("** Initial buffer fill complete, releasing second core");
-					rp2040.resumeOtherCore();
-				}
-			}
-	
-			// Check for bitbuffer locking
-			if (bb_locked[bb_cur_bitbuf]) {
-				Serial.println("** All buffers full, waiting for a buffer");
-				while (!bb_check_unlocks()) {}
-			}
+			bb_commit();
 		}
 	}
 }
@@ -500,6 +498,8 @@ void loop1()
 	// Get the index of the data block to push
 	uint32_t zIndex = rp2040.fifo.pop();
 
+	dma_channel_wait_for_finish_blocking(dma_chan_spi);
+
 	// Send data block zIndex
 
 #ifdef SCOPE_TRIGGER_OUT
@@ -508,27 +508,18 @@ void loop1()
 	digitalWrite(DEBUG_PIN, 0);
 #endif
 
-#ifdef DMA
+	// apply scrambling
+	uint8_t *p = bb_buffer[zIndex];
+	for (size_t i=0; i<bb_length[zIndex]; i++) {
+		*p = scramble_byte(*p);
+		p++;
+	}
+
 	dma_channel_configure(dma_chan_spi, &dma_config_spi,
 						  &spi_get_hw(spi_default)->dr, // write address
 						  bb_buffer[zIndex], // read address
 						  bb_length[zIndex], // element count (each element is of size transfer_data_size)
 						  true); // start!
-	dma_channel_wait_for_finish_blocking(dma_chan_spi);
-#else
-	// send the packet
-	SPI.beginTransaction(SPISettings(SPI_SPEED, MSBFIRST, SPI_MODE0));
-//	noInterrupts();
-	
-	for (size_t n=0; n<BITBUF_BUFLEN; n++) {
-		// we do it this way to avoid trashing the buffer
-		// because sending the block straight to transfer() will do that
-		SPI.transfer(bb_buffer[zIndex][n]);
-	}
-	
-//	interrupts();
-	SPI.endTransaction();
-#endif
 
 	// ask the main core to release the buffer
 	rp2040.fifo.push(zIndex);

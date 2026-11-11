@@ -71,9 +71,9 @@ The results of this work are in the `U31_MC6805P2` directory
 
 ## Addressing PAL
 
-The Addressing PAL is the chip above the Signetics N8X60N FIFO controller, identified as U5. Under the label, it's a Monolithic Memories PAL16R6 or PAL16R6A, with the security fuse blown. Sadly the blown security fuse means not even my BP1200 can read the contents - there are [optical](https://twitter.com/johndmcmaster/status/1527017106294046720) [https://docs.google.com/presentation/d/1pVCLh80MX_Cdnd8TuS0s8gr9pOl9cneZiQchR0O-Jmw/edit#slide=id.p](attacks) to read them, but I didn't want to decap the PAL just yet (even though I have the equipment to optically image it and - at least in theory - recover the original fuse data).
+The Addressing PAL is the chip above the Signetics N8X60N FIFO controller, identified as U5. Under the label, it's a Monolithic Memories PAL16R6 or PAL16R6A, with the security fuse blown. Sadly the blown security fuse means not even my BP1200 can read the contents - there are [optical](https://twitter.com/johndmcmaster/status/1527017106294046720) [attacks](https://docs.google.com/presentation/d/1pVCLh80MX_Cdnd8TuS0s8gr9pOl9cneZiQchR0O-Jmw/edit#slide=id.p) to read them, but I didn't want to decap the PAL just yet (even though I have the equipment to optically image it and - at least in theory - recover the original fuse data).
 
-Instead I opted for a non-invasive attack using a [https://github.com/DuPAL-PAL-DUmper/](DuPAL) PAL dumper. (note that [https://mastodon.social/@tubetime/112097066652462727](TubeTime has identified a limitation in DuPAL), but it's not relevant to the NABU design).
+Instead I opted for a non-invasive attack using a [DuPAL](https://github.com/DuPAL-PAL-DUmper/) PAL dumper. (note that [TubeTime has identified a limitation in DuPAL](https://mastodon.social/@tubetime/112097066652462727), but it's not relevant to the NABU design).
 
 The results of this work are in the `U5_Addressing_PAL_80011887` directory, and include the processing shell script, DuPAL JSON file, Espresso logic input, and output equations from Espresso. These need to be cleaned up before the logic will make sense, but that can't really start until the pinout is fully known ... which means finishing the schematic, at least as far as the control FIFO.
 
